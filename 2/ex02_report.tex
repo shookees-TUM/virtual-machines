@@ -1,0 +1,141 @@
+\documentclass{report}
+\usepackage[utf8]{inputenc}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage[usenames, dvipsnames]{color}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{TUM, Virtual Machines}
+\lhead{Exercise 02 report}
+\chead{Paulius Sukys}
+
+\setcounter{chapter}{2}
+\begin{document}
+\begin{multicols}{3}
+[
+\section{Expression}
+$x=(y=(y+4))*z$; $\rho=\{x\to4, y\to5, z\to6\}$\\
+Deconstructing: $y=y + 4; x = y * z$
+]
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+    loada 5
+    loadc 4
+    add
+    storea 5
+    loada 5
+    loada 6
+    mul
+    storea 4
+\end{lstlisting}
+\end{multicols}
+Since $y$ is set midway, I store the new value, which removes it from stack, then to get it back on stack, I load it back from updated $y$. Alternatively, this can be done by using duplicating:
+\begin{multicols}{3}
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+    loada 5
+    loadc 4
+    add
+    dup
+    storea 5
+    loada 6
+    mul
+    storea 4
+\end{lstlisting}
+\end{multicols}
+Duplication will avoid referencing the register, although computation-wise, I do not know which solution is better.
+
+
+\section{The {\fontfamily{lmvtt}\selectfont do-while} Loop}
+Code generation scheme for {\fontfamily{lmvtt}\selectfont do \textit{s} while (\textit{e})}:\\
+{\color{OliveGreen}$code$} $s'$ $\rho$ =\\
+\hspace*{1.5cm} {\color{RoyalBlue}A:} {\color{OliveGreen}$code$} $s$ $\rho$\\
+\hspace*{2cm} {\color{OliveGreen}$code_R$} $e$ $\rho$\\
+\hspace*{2cm} {\color{RoyalBlue}$jumpz$ $B$}\\
+\hspace*{2cm} {\color{RoyalBlue}$jump$ $A$}\\
+\hspace*{1.5cm} {\color{RoyalBlue}B:} ...
+
+\section{{\fontfamily{lmvtt}\selectfont break} \& {\fontfamily{lmvtt}\selectfont continue}
+{\fontfamily{lmvtt}\selectfont break} and {\fontfamily{lmvtt}\selectfont continue}} statements are simply unconditional jumps:\\
+break - outside cycle;
+continue - to cycle beginning
+
+\subsection{{\fontfamily{lmvtt}\selectfont for} loop}
+{\color{OliveGreen}$code$} $s$ $\rho$ =\hspace*{.35cm} {\color{OliveGreen}$code_R$} $e_1$ $\rho$\\
+\hspace*{2cm} {\color{RoyalBlue}$pop$}\\
+\hspace*{1.5cm} {\color{RoyalBlue}A:} {\color{OliveGreen}$code_R$} $e_2$ $\rho$\\
+\hspace*{2cm} {\color{RoyalBlue}$jumpz B$}\\
+\hspace*{2cm} {\color{OliveGreen}$code$} $s'$ $\rho$\\
+\hspace*{2cm} {\color{OliveGreen}$code_R$} $e_3$ $\rho$\\
+\hspace*{2cm} {\color{RoyalBlue}$pop$}\\
+\hspace*{2cm} {\color{RoyalBlue}$jump$ $A$}\\
+\hspace*{1.5cm} {\color{RoyalBlue}B:} ...
+
+Where {\color{RoyalBlue}$B$} is label outside cycle; {\color{RoyalBlue}$A$} - label to cycle start. Here {\color{OliveGreen}$code$} $s'$ $\rho$ would contain {\fontfamily{lmvtt}\selectfont break} and/or {\fontfamily{lmvtt}\selectfont continue} statements, where:\\
+\begin{enumerate}
+\item {\fontfamily{lmvtt}\selectfont break} directly translates to {\color{RoyalBlue}$jump$ $B$}
+\item {\fontfamily{lmvtt}\selectfont continue} directly translates to {\color{RoyalBlue}$jump$ $A$}
+\end{enumerate}
+\subsection{{\fontfamily{lmvtt}\selectfont while} loop}
+{\color{OliveGreen}$code$} $s$ $\rho$ =\\
+\hspace*{1.5cm} {\color{RoyalBlue}A:} {\color{OliveGreen}$code_R$} $e$ $\rho$\\
+\hspace*{2cm} {\color{RoyalBlue}$jumpz B$}\\
+\hspace*{2cm} {\color{OliveGreen}$code$} $s'$ $\rho$\\
+\hspace*{2cm} {\color{RoyalBlue}$jump$ $A$}\\
+\hspace*{1.5cm} {\color{RoyalBlue}B:} ...
+
+Where {\color{RoyalBlue}$B$} is label outside cycle; {\color{RoyalBlue}$A$} - label to cycle start. Here {\color{OliveGreen}$code$} $s'$ $\rho$ would contain {\fontfamily{lmvtt}\selectfont break} and/or {\fontfamily{lmvtt}\selectfont continue} statements, where:\\
+\begin{enumerate}
+\item {\fontfamily{lmvtt}\selectfont break} directly translates to {\color{RoyalBlue}$jump$ $B$}
+\item {\fontfamily{lmvtt}\selectfont continue} directly translates to {\color{RoyalBlue}$jump$ $A$}
+\end{enumerate}
+
+\section{Reverse engineering}
+Convert to C, given $\rho = \{ x\to1, y\to2\}$. There is an assumption done on the exercise sheet given CMa code, which has its $20^{th}$ instruction set as {\fontfamily{lmvtt}\selectfont loada 2}, which in turn, after every cycle  would reference outside given address environment ($\rho$). It should have probably been {\fontfamily{lmvtt}\selectfont loadc 2}, which references the y variable.
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+while (10 > x)
+{
+  x = x + 1;
+  if (x % 2 == 0)
+  {
+    continue;
+  }
+  else
+  {
+    y = y + 1;
+  }
+}
+\end{lstlisting}
+EDIT: as stated, the $20^{th}$ instruction was intentional, thus the C code would be as follows:
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+while (x > 10)
+{
+  x = x + 1;
+  if ((x % 2 == 0) == 0)
+  {
+    continue;
+  }
+  else
+  {
+    *(&(*y)) = *y + 1;
+  }
+}
+\end{lstlisting}
+The {\fontfamily{lmvtt}\selectfont *(\&(*y)) = *y + 1;} represents the logic of:
+set the value of y value + 1 to value of address at y value.
+\end{document}
