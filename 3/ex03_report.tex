@@ -1,0 +1,177 @@
+\documentclass{report}
+\usepackage[utf8]{inputenc}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage[usenames, dvipsnames]{color}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{TUM, Virtual Machines}
+\lhead{Exercise 03 report}
+\chead{Paulius Sukys}
+
+\setcounter{chapter}{3}
+\begin{document}
+\section{Structs}
+Address environments for $\rho_{point}$ and $\rho_{foo}$:
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+struct point {
+    int x;
+    int y;
+};
+struct foo {
+    int a;
+    struct point points[5];
+    struct point *ptr;
+    int b;        
+} bar;
+sizeof(int);// = 4
+\end{lstlisting}
+
+The address environment variables are relative to the beginning of {\fontfamily{lmvtt}\selectfont struct} address:\\
+$\rho_{point} = \{x\to0, x\to4\}$\\
+$\rho_{foo} = \{a\to0, points\to4, ptr\to44, b\to52\}$\\
+
+CMa code with $\rho(bar) = 1$:\\
+{\color{RoyalBlue}$code_L$} {\fontfamily{lmvtt}\selectfont (bar.ptr$\to$y)} $\rho$ = loadc 1\hspace*{1.5cm} {\small $\rho(bar)$}\\
+\hspace*{3.67cm} loadc 44\hspace*{1.3cm} {\small relative address inside {\fontfamily{lmvtt}\selectfont bar}}\\
+\hspace*{3.67cm} loadc 4\hspace*{1.5cm} {\small relative address inside {\fontfamily{lmvtt}\selectfont struct point}}\\
+\hspace*{3.67cm} add\hspace*{2cm} {\small absolute address inside {\fontfamily{lmvtt}\selectfont bar}}\\
+\hspace*{3.67cm} add\hspace*{2cm} {\small absolute address in address environment}\\
+
+\section{Extreme pointer}
+Precise upper bound for the number of stack locations that are maximally needed for their evaluation
+\subsection{{\fontfamily{lmvtt}\selectfont 5 + (x * 42);}}
+\begin{verbatim}
+loadc 5 /*+1*/
+loada x /*+1*/
+loadc 42 /*+1*/
+mul /*-1*/
+add /*-1*/
+\end{verbatim}
+Having a value in the stack for $x$ address, uses additional stack space
+Maximum stack size: 4 (1 for address, 3 for actions)
+\subsection{{\fontfamily{lmvtt}\selectfont a[y * y + 5];}}
+\begin{verbatim}
+loadc a \rho /*+1*/
+loada y /*+1*/
+loada y /*+1*/
+mul /*-1*/
+loadc 5 /*+1*/
+add /*-1*/
+add /*-1*/
+load /*0*/
+\end{verbatim}
+Having $a$ and $y$ as addresses, uses additional 2 slots in stack
+Maximum stack size: 5 (1 for $a$, 1 for $y$ and 3 for actions)
+\subsection{{\fontfamily{lmvtt}\selectfont x = y + 42;}}
+\begin{verbatim}
+loada y /*+1*/
+loadc 42 /*+1*/
+add /*-1*/
+loadc x \rho /*+1*/
+store /*-1*/
+\end{verbatim}
+Maximum stack size: 4 (1 for $y$, 1 for $x$ and 2 for actions)
+\subsection{{\fontfamily{lmvtt}\selectfont while (x $<$ 42) \{ x = x + 1; a[x + 2] = 42;\}}}
+\begin{verbatim}
+loada x /*+1*/
+loadc 42 /*+1*/
+le /*-1*/
+jumpz B /*-1*/
+A:
+loada x /*+1*/
+loadc 1 /*+1*/
+add /*-1*/
+loadc x \rho /*+1*/
+store /*-1*/
+pop /*-1*/
+loadc 42 /*+1*/
+loadc a \rho /*+1*/
+loada x /*+1*/
+loadc 2 /*+1*/
+add /*-1*/
+add /*-1*/
+store /*-1*/
+pop /*-1*/
+jump A
+B:
+\end{verbatim}
+Maximum stack size: 6 (1 for $x$, 1 for $a$, 4 for actions).
+This can actually be optimized by changing
+\begin{verbatim}
+loadc 42 /*+1*/
+loadc a \rho /*+1*/
+loada x /*+1*/
+loadc 2 /*+1*/
+add /*-1*/
+add /*-1*/
+\end{verbatim}
+to
+\begin{verbatim}
+loadc 42 /*+1*/
+loadc a \rho /*+1*/
+add /*-1*/
+loada x /*+1*/
+loadc 2 /*+1*/
+add /*-1*/
+\end{verbatim}
+thus allowing smaller maximum stack size.
+
+\section{Function call}
+\subsection{Translate to C code to CMa}
+\begin{verbatim}
+int f(int x, int y) {
+    return x * y + 2;
+}
+\end{verbatim}  
+\begin{multicols}{3}
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+  _f:
+  enter q
+  alloc 0
+  loadr x $\rho_{f}$
+  loadr y $\rho_{f}$
+  mul
+  loadc 2
+  add
+  storer -3 /* is this where we plant the return value?? */
+  return
+\end{lstlisting}
+\end{multicols}
+
+
+\subsection{Translate expression $e \equiv f(8, 5)$ into CMa}
+\begin{multicols}{3}
+\begin{lstlisting}[
+mathescape,
+columns=fullflexible,
+basicstyle=\fontfamily{lmvtt}\selectfont,
+]
+  ...
+  loadc 8
+  loadc 5
+  mark
+  loadc _f
+  call
+  slide 0
+  ...
+\end{lstlisting}
+\end{multicols}
+\begin{table}[]
+\hline
+Mapping & Mode &  & Cyclic &  & \\ \hline
+& Change from 0 to 1 &  & 5.94   & 2.64 & 1.22 \\
+& Change form 1 to 0 &  & 23.66  & 10.46 & 4.84 \\ \hline
+& Change form 1 to 0 &  & 8.62   & 3.60 & 1.78 \\
+\end{table}
+
+\end{document}
